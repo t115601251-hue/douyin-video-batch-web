@@ -8,9 +8,10 @@
 <label for="links">支持公开视频页、短链接与分享文案；链接无需分行，连续粘贴也会自动识别；每批最多 100 条</label>
 <textarea id="links" placeholder="可直接连续粘贴多个链接，无需换行&#10;https://www.douyin.com/video/…https://www.youtube.com/watch?v=…&#10;也支持粘贴包含链接的分享文案"></textarea>
 <div class="actions"><button id="parseBtn" class="primary">解析并核对链接</button><button id="clearBtn">清空输入</button><small>相同作品自动合并</small></div></article>
-<article id="saveCard" class="card"><h2><b>02</b> 确认保存位置</h2><label for="saveDir">实际写入此电脑的文件夹</label><input id="saveDir" type="text" spellcheck="false">
+<article id="saveCard" class="card"><h2 id="saveHeading"><b>02</b> 确认保存位置</h2><div id="localSaveControls"><label for="saveDir">实际写入此电脑的文件夹</label><input id="saveDir" type="text" spellcheck="false">
 <div class="actions"><button id="pathBtn">确认目录</button></div>
-<p id="pathStatus" class="hint">默认保存到程序旁的 downloads 文件夹。路径不可写时会报错，不会偷偷换位置。</p>
+<p id="pathStatus" class="hint">默认保存到程序旁的 downloads 文件夹。路径不可写时会报错，不会偷偷换位置。</p></div>
+<div id="publicDownloadNotice" class="hint" hidden><p>下载完成后，点击每条视频的“下载 MP4 到设备”。浏览器会保存到你的下载目录。</p><p>文件只会临时保存在服务端，服务停止、重启或闲置后会被清除。</p></div>
 <div class="quality-default"><label for="globalQuality">批量清晰度偏好</label><select id="globalQuality"><option value="best">最高可用分辨率</option><option value="compatible">H.264 兼容优先</option><option value="1080">优先 1080p 及以下</option><option value="720">优先 720p 及以下</option><option value="540">优先 540p 及以下</option></select><small>按画面短边选择；无符合源时选最低可用源。以每条显示的尺寸为准，不放大、不转码。</small></div></article>
 </section>
 <section class="card results"><div class="section-head"><div><h2><b>03</b> 核对作品与分辨率</h2><p class="hint">抖音链接会严格核对作品 ID；其他公开平台由通用解析器匹配。受登录、付费或 DRM 保护的内容无法下载。</p></div><div class="actions"><button id="selectAll">全选 / 取消</button><button id="downloadBtn" class="primary" disabled>批量保存选中视频</button></div></div>

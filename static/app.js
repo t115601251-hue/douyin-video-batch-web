@@ -13,7 +13,10 @@ async function api(path, data) {
 function applyHostedMode(value) {
   hosted = Boolean(value);
   if (!hosted) return;
-  $('saveCard').hidden = true;
+  $('localSaveControls').hidden = true;
+  $('publicDownloadNotice').hidden = false;
+  $('saveHeading').innerHTML = '<b>02</b> 确认下载方式';
+  $('downloadBtn').textContent = '批量下载选中视频';
   $('workspaceMode').textContent = 'VIDEO / PUBLIC WORKSPACE';
   $('locationBadge').textContent = '● 公网运行 · 下载到你的设备';
   document.querySelector('header p').textContent = '先核对作品，再选择清晰度，下载为 MP4。';
@@ -116,7 +119,7 @@ async function startDownload(retry = false) {
   if (!choices.length) { status('请至少勾选一个视频', true); return; }
   busy(true); $('retryBtn').hidden = true;
   try {
-    let saveDir = $('saveDir').value;
+    let saveDir = hosted ? '' : $('saveDir').value;
     if (!hosted) { const checked = await api('/api/path', {path: saveDir}); saveDir = checked.path; $('saveDir').value = saveDir; $('pathStatus').textContent = `实际保存目录：${saveDir}`; }
     const job = await api('/api/download', {parse_id: parsedId, choices, save_dir: saveDir});
     activeId = job.id; localStorage.setItem('douyinActive', job.id); poll(job.id);
