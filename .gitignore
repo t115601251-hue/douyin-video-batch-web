@@ -1,0 +1,16 @@
+# Local portable runtime and generated content
+python_env/
+downloads/
+验证下载/
+*.mp4
+*.part
+settings.json
+server.log
+server_error.log
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
