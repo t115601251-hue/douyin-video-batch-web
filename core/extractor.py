@@ -8,6 +8,8 @@ from config import DEFAULT_HEADERS, DEFAULT_TIMEOUT, MAX_LINKS
 # newline or a space between links: two copied links can be pasted together.
 LINK_START_RE = re.compile(r'(?=(?:https?://)?(?:[\w-]+\.)*(?:douyin\.com|iesdouyin\.com)/)', re.I)
 LINK_RE = re.compile(r'(?:https?://)?(?:[\w-]+\.)*(?:douyin\.com|iesdouyin\.com)/[^\s<>\"\'\]\)（），。！？；]+', re.I)
+ANY_LINK_START_RE = re.compile(r'(?=https?://)', re.I)
+ANY_LINK_RE = re.compile(r'https?://[^\s<>\"\'\]\)（），。！？；]+', re.I)
 ID_RE = re.compile(r'/(?:share/)?(?:video|note)/(\d{10,25})(?:/|$)')
 
 def is_douyin_url(url):
@@ -51,6 +53,30 @@ def extract_douyin_links(raw_text):
         if url not in seen:
             seen.add(url)
             result.append(url)
+    if len(result) > MAX_LINKS:
+        raise ValueError(f'单批最多 {MAX_LINKS} 条不同链接，请分批提交')
+    return result
+
+def extract_public_links(raw_text):
+    """Extract public HTTP(S) links, including adjacent pasted URLs."""
+    if not isinstance(raw_text, str):
+        raise ValueError('链接内容必须是文本')
+    result, seen = [], set()
+    starts = [m.start() for m in ANY_LINK_START_RE.finditer(raw_text)]
+    for index, start in enumerate(starts):
+        candidate = raw_text[start:starts[index + 1] if index + 1 < len(starts) else len(raw_text)]
+        match = ANY_LINK_RE.match(candidate)
+        if not match:
+            continue
+        url = match[0].rstrip('.,;!?}')
+        parsed = urlsplit(url)
+        if (parsed.scheme not in ('https', 'http') or not parsed.hostname or parsed.username or parsed.password
+                or parsed.port not in (None, 80, 443)):
+            continue
+        normalized = urlunsplit((parsed.scheme, parsed.netloc.lower(), parsed.path, parsed.query, ''))
+        if normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
     if len(result) > MAX_LINKS:
         raise ValueError(f'单批最多 {MAX_LINKS} 条不同链接，请分批提交')
     return result

@@ -32,7 +32,7 @@ def persist_directory(path):
     os.replace(temp, SETTINGS)
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = 'DouyinLocal/2.0'
+    server_version = 'VideoWorkspace/2.1'
 
     def setup(self):
         super().setup()
@@ -185,7 +185,7 @@ def main():
     if server is None:
         raise SystemExit('没有可用端口')
     url = f'http://127.0.0.1:{server.server_port}'
-    print(f'抖音批量视频提取器 v2 已启动：{url}', flush=True)
+    print(f'视频批量下载工作台 v2.1 已启动：{url}', flush=True)
     print(f'默认保存目录：{last_directory()}', flush=True)
     if not args.no_browser:
         webbrowser.open(url)

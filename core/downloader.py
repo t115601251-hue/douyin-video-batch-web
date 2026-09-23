@@ -76,6 +76,8 @@ class BatchDownloader:
                 callback(dict(result))
         def cancelled():
             return cancel is not None and cancel.is_set()
+        if info.source == 'yt-dlp':
+            return await asyncio.to_thread(self._download_with_ytdlp, info, variant, callback, cancelled)
         target = self.save_dir / info.filename(variant)
         key = str(target)
         async with self.semaphore, self.locks.setdefault(key, asyncio.Lock()):
@@ -160,6 +162,58 @@ class BatchDownloader:
                         temp.unlink(missing_ok=True)
             update(status='已取消' if cancelled() else '下载失败', error='' if cancelled() else last_error)
             return result
+
+    def _download_with_ytdlp(self, info, variant, callback, cancelled):
+        """Download and merge one selected public-platform variant into one MP4."""
+        result = {'aweme_id': info.aweme_id, 'title': info.title, 'variant_id': variant.id,
+                  'status': '等待下载', 'downloaded': 0, 'total_bytes': variant.size,
+                  'save_path': '', 'error': '', 'source_urls': info.source_urls, 'quality': variant.label}
+        def update(**values):
+            result.update(values)
+            if callback:
+                callback(dict(result))
+        target = self.save_dir / info.filename(variant)
+        try:
+            import yt_dlp
+            if cancelled():
+                update(status='已取消')
+                return result
+            if target.exists():
+                actual = inspect_mp4(target)
+                update(status='已存在', save_path=str(target), downloaded=actual['bytes'], total_bytes=actual['bytes'], actual=actual)
+                return result
+            selector = variant.urls[0] if variant.urls else 'bestvideo+bestaudio/best'
+            def progress(data):
+                if cancelled():
+                    raise KeyboardInterrupt('已取消')
+                if data.get('status') == 'downloading':
+                    update(status='下载中', downloaded=int(data.get('downloaded_bytes') or 0), total_bytes=int(data.get('total_bytes') or data.get('total_bytes_estimate') or variant.size or 0))
+            options = {
+                'format': selector,
+                'merge_output_format': 'mp4',
+                'outtmpl': str(target.with_suffix('')) + '.%(ext)s',
+                'noplaylist': True,
+                'quiet': True,
+                'no_warnings': True,
+                'overwrites': False,
+                'progress_hooks': [progress],
+            }
+            update(status='下载中')
+            with yt_dlp.YoutubeDL(options) as ydl:
+                ydl.download(info.source_urls[:1])
+            if cancelled():
+                update(status='已取消')
+                return result
+            if not target.is_file():
+                candidates = sorted(self.save_dir.glob(target.stem + '.*'), key=lambda p: p.stat().st_mtime, reverse=True)
+                target = next((p for p in candidates if p.suffix.lower() == '.mp4'), target)
+            actual = inspect_mp4(target)
+            update(status='下载成功', save_path=str(target), downloaded=actual['bytes'], total_bytes=actual['bytes'], actual=actual)
+        except KeyboardInterrupt:
+            update(status='已取消')
+        except Exception as e:
+            update(status='下载失败', error=f'{type(e).__name__}: {e}')
+        return result
 
     async def download_all(self, selections, callback=None, cancel=None, client=None):
         if client is None:

@@ -1,19 +1,19 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="session-token" content="__SESSION_TOKEN__"><title>抖音视频 · 批量工作台</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="session-token" content="__SESSION_TOKEN__"><title>视频下载 · 批量工作台</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
 <body><main>
-<header><div><span class="eyebrow">DOUYIN / LOCAL WORKSPACE</span><h1>抖音视频批量工作台<span>2.0</span></h1><p>先核对作品，再选择清晰度，保存到你指定的位置。</p></div><span class="local-badge">● 本机运行 · 文件保存在此电脑</span></header>
+<header><div><span class="eyebrow">VIDEO / LOCAL WORKSPACE</span><h1>视频批量下载工作台<span>2.1</span></h1><p>先核对作品，再选择清晰度，保存到你指定的位置。</p></div><span class="local-badge">● 本机运行 · 文件保存在此电脑</span></header>
 <section class="setup">
 <article class="card"><div class="section-head"><h2><b>01</b> 批量输入链接</h2></div>
-<label for="links">支持精选页、视频页、短链接与分享文案；链接无需分行，连续粘贴也会自动识别；每批最多 100 条</label>
-<textarea id="links" placeholder="可直接连续粘贴多个链接，无需换行&#10;https://www.douyin.com/jingxuan?modal_id=…https://www.douyin.com/video/…&#10;也支持粘贴包含链接的分享文案"></textarea>
+<label for="links">支持公开视频页、短链接与分享文案；链接无需分行，连续粘贴也会自动识别；每批最多 100 条</label>
+<textarea id="links" placeholder="可直接连续粘贴多个链接，无需换行&#10;https://www.douyin.com/video/…https://www.youtube.com/watch?v=…&#10;也支持粘贴包含链接的分享文案"></textarea>
 <div class="actions"><button id="parseBtn" class="primary">解析并核对链接</button><button id="clearBtn">清空输入</button><small>相同作品自动合并</small></div></article>
 <article class="card"><h2><b>02</b> 确认保存位置</h2><label for="saveDir">实际写入此电脑的文件夹</label><input id="saveDir" type="text" spellcheck="false">
 <div class="actions"><button id="pathBtn">确认目录</button></div>
 <p id="pathStatus" class="hint">默认保存到程序旁的 downloads 文件夹。路径不可写时会报错，不会偷偷换位置。</p>
 <div class="quality-default"><label for="globalQuality">批量清晰度偏好</label><select id="globalQuality"><option value="best">最高可用分辨率</option><option value="compatible">H.264 兼容优先</option><option value="1080">优先 1080p 及以下</option><option value="720">优先 720p 及以下</option><option value="540">优先 540p 及以下</option></select><small>按画面短边选择；无符合源时选最低可用源。以每条显示的尺寸为准，不放大、不转码。</small></div></article>
 </section>
-<section class="card results"><div class="section-head"><div><h2><b>03</b> 核对作品与分辨率</h2><p class="hint">链接中的作品 ID 必须与返回视频完全一致。H.265 文件可正常保存，但部分浏览器无法预览。</p></div><div class="actions"><button id="selectAll">全选 / 取消</button><button id="downloadBtn" class="primary" disabled>批量保存选中视频</button></div></div>
+<section class="card results"><div class="section-head"><div><h2><b>03</b> 核对作品与分辨率</h2><p class="hint">抖音链接会严格核对作品 ID；其他公开平台由通用解析器匹配。受登录、付费或 DRM 保护的内容无法下载。</p></div><div class="actions"><button id="selectAll">全选 / 取消</button><button id="downloadBtn" class="primary" disabled>批量保存选中视频</button></div></div>
 <div id="empty" class="empty"><span>↗</span><h3>把链接变成有序的视频文件</h3><p>解析后会在这里显示标题、作者、原链接、作品 ID 和真实可选分辨率。</p></div><div id="videos" class="videos"></div></section>
 <section class="card"><div class="section-head"><h2>任务进度</h2><div class="actions"><button id="retryBtn" hidden>重试失败项</button><button id="cancelBtn" hidden>取消当前任务</button></div></div><p id="status" role="status" aria-live="polite">等待输入链接</p><progress id="progress" value="0" max="100"></progress><div id="downloads" class="downloads"></div></section>
 <section id="previewPanel" class="card" hidden><div class="section-head"><h2 id="previewTitle">本地视频预览</h2><button id="closePreview">关闭预览</button></div><video id="player" controls preload="metadata"></video><p id="playerHint" class="hint">播放的是已经下载到本机的文件，可以拖动进度条。H.265 无法播放时请使用本机播放器。</p></section>

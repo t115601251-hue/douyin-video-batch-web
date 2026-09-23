@@ -57,12 +57,13 @@ class VideoInfo:
         return dict(aweme_id=self.aweme_id, title=self.title, author=self.author,
                     duration_sec=self.duration_sec, cover_url=self.cover_url,
                     variants=[v.public() for v in self.variants], source_urls=self.source_urls,
-                    canonical_url=f'https://www.douyin.com/video/{self.aweme_id}' if self.aweme_id else '',
+                    canonical_url=self.source_urls[0] if self.source_urls else '',
                     matched=self.is_video, error=self.error_msg, source=self.source)
 
     def filename(self, variant):
-        text = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', f'{self.author[:18]}_{self.title[:36]}').strip(' ._') or '抖音视频'
-        return f'{text}_{self.aweme_id}_{variant.width}x{variant.height}_{variant.id}.mp4'
+        text = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', f'{self.author[:18]}_{self.title[:36]}').strip(' ._') or '视频'
+        identity = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', self.aweme_id).strip(' ._') or 'video'
+        return f'{text}_{identity}_{variant.width}x{variant.height}_{variant.id}.mp4'
 
 def find_item(data, aweme_id):
     stack = [data]

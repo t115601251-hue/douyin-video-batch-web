@@ -33,8 +33,8 @@ function renderVideos(items) {
     check.dataset.id = row.aweme_id || ''; check.setAttribute('aria-label', `选择 ${row.title || '此作品'}`);
     if (!row.matched) { check.disabled = true; check.dataset.invalid = '1'; }
     const details = el('div'); details.append(el('p', row.title || row.status || '等待解析', 'video-title'));
-    details.append(el('div', `${row.author || '待获取作者'} · ${row.duration_sec || 0} 秒 · ID ${row.aweme_id || '待核对'}`, 'metadata'));
-    if (row.matched) details.append(el('span', '✓ 作品 ID 已一致核对', 'matched'));
+    details.append(el('div', `${row.author || '待获取作者'} · ${row.duration_sec || 0} 秒 · 标识 ${row.aweme_id || '待核对'}`, 'metadata'));
+    if (row.matched) details.append(el('span', row.source === 'yt-dlp' ? '✓ 已由通用平台适配器核对' : '✓ 抖音作品 ID 已一致核对', 'matched'));
     else if (row.error) details.append(el('p', row.error, 'hint error'));
     for (const source of row.source_urls || []) {
       const a = el('a', source, 'source-link'); a.href = source; a.target = '_blank'; a.rel = 'noopener noreferrer'; details.append(a);

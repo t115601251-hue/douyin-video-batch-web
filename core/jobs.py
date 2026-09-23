@@ -7,8 +7,9 @@ import uuid
 from pathlib import Path
 import httpx
 from config import DEFAULT_HEADERS, DEFAULT_TIMEOUT, prepare_directory
-from .extractor import extract_douyin_links
+from .extractor import extract_public_links, is_douyin_url
 from .parser import DouyinVideoParser, VideoInfo
+from .universal import UniversalVideoParser
 from .downloader import BatchDownloader
 
 class JobManager:
@@ -78,22 +79,23 @@ class JobManager:
                 job['loop'].call_soon_threadsafe(job['task'].cancel)
 
     def parse(self, text):
-        urls = extract_douyin_links(text)
+        urls = extract_public_links(text)
         if not urls:
-            raise ValueError('没有识别到抖音链接。支持分享文案、/video/ 和 ?modal_id= 网页链接')
+            raise ValueError('没有识别到公开网页链接。请粘贴以 http:// 或 https:// 开头的视频页或分享链接')
         job = self._new('parse')
         job['total'] = len(urls)
         job['items'] = [{'source_urls': [u], 'status': '等待解析'} for u in urls]
         async def work():
             semaphore = asyncio.Semaphore(3)
-            parser = DouyinVideoParser()
+            douyin_parser, universal_parser = DouyinVideoParser(), UniversalVideoParser()
             async with httpx.AsyncClient(headers=DEFAULT_HEADERS, timeout=DEFAULT_TIMEOUT, limits=httpx.Limits(max_connections=6)) as client:
                 async def one(index, url):
                     async with semaphore:
                         with self.lock:
                             job['items'][index]['status'] = '解析中'
                         try:
-                            info = await asyncio.wait_for(parser.parse(url, client), 85)
+                            parser = douyin_parser if is_douyin_url(url) else universal_parser
+                            info = await asyncio.wait_for(parser.parse(url, client) if parser is douyin_parser else parser.parse(url), 85)
                         except asyncio.TimeoutError:
                             info = VideoInfo('', source_urls=[url], error_msg='解析超时，请稍后重试')
                         with self.lock:
