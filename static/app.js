@@ -1,15 +1,24 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const token = document.querySelector('meta[name=session-token]').content;
-let parsedId = '', activeId = '', rows = [], lastDownload = null, pollTimer = null;
+let parsedId = '', activeId = '', rows = [], lastDownload = null, pollTimer = null, hosted = false;
 const preferences = new Map();
 function el(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
 function status(text, error = false) { $('status').textContent = text; $('status').classList.toggle('error', error); }
 async function api(path, data) {
-  const response = await fetch(path, {method: data === undefined ? 'GET' : 'POST', headers: {'X-Session-Token': token, 'Content-Type': 'application/json'}, ...(data === undefined ? {} : {body: JSON.stringify(data)})});
+  const response = await fetch(path, {method: data === undefined ? 'GET' : 'POST', headers: {'Content-Type': 'application/json'}, ...(data === undefined ? {} : {body: JSON.stringify(data)})});
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || `请求失败 ${response.status}`);
   return body;
+}
+function applyHostedMode(value) {
+  hosted = Boolean(value);
+  if (!hosted) return;
+  $('saveCard').hidden = true;
+  $('workspaceMode').textContent = 'VIDEO / PUBLIC WORKSPACE';
+  $('locationBadge').textContent = '● 公网运行 · 下载到你的设备';
+  document.querySelector('header p').textContent = '先核对作品，再选择清晰度，下载为 MP4。';
+  $('previewPanel').hidden = true;
+  $('playerHint').textContent = '公网版本请直接下载 MP4 到你的设备。服务端文件会在服务重启后清除。';
 }
 function busy(value) {
   for (const id of ['parseBtn', 'downloadBtn', 'clearBtn', 'globalQuality', 'selectAll']) $(id).disabled = value;
@@ -53,7 +62,7 @@ function renderVideos(items) {
     box.append(check, details, quality); $('videos').append(box);
   });
 }
-function fileUrl(id, download = false) { return `/api/file?id=${encodeURIComponent(id)}&token=${encodeURIComponent(token)}${download ? '&download=1' : ''}`; }
+function fileUrl(id, download = false) { return `/api/file?id=${encodeURIComponent(id)}${download ? '&download=1' : ''}`; }
 function renderDownloads(items) {
   $('downloads').replaceChildren();
   items.forEach(row => {
@@ -61,14 +70,16 @@ function renderDownloads(items) {
     const head = el('div', undefined, 'download-head'); head.append(el('strong', row.title), el('span', row.status, row.status === '下载失败' ? 'error' : ''));
     box.append(head, el('div', `${row.quality || ''} · ${bytes(row.downloaded)} / ${bytes(row.total_bytes)}`, 'metadata'));
     if (row.status === '下载中') { const p = el('progress'); p.max = row.total_bytes || 1; if (row.total_bytes) p.value = row.downloaded || 0; box.append(p); }
-    if (row.save_path) box.append(el('div', `已保存：${row.save_path}`, 'download-path'));
+    if (row.save_path && !hosted) box.append(el('div', `已保存：${row.save_path}`, 'download-path'));
+    if (row.save_path && hosted) box.append(el('div', '文件已临时保存在服务端，请尽快下载到你的设备。', 'download-path'));
     if (row.actual) box.append(el('div', `文件实测分辨率：${row.actual.width} × ${row.actual.height}`, 'metadata'));
     if (row.error) box.append(el('div', row.error, 'hint error'));
     if (row.file_id) {
-      const actions = el('div', undefined, 'actions'); const play = el('button', '预览本地视频');
-      play.addEventListener('click', () => { $('previewPanel').hidden = false; $('previewTitle').textContent = row.title; $('player').src = fileUrl(row.file_id); $('player').load(); $('previewPanel').scrollIntoView({behavior: 'smooth', block: 'center'}); });
-      const save = el('a', '另存一份'); save.href = fileUrl(row.file_id, true);
-      actions.append(play, save); box.append(actions);
+      const actions = el('div', undefined, 'actions');
+      const save = el('a', hosted ? '下载 MP4 到设备' : '另存一份'); save.href = fileUrl(row.file_id, true);
+      if (hosted) { save.download = ''; actions.append(save); }
+      else { const play = el('button', '预览本地视频'); play.addEventListener('click', () => { $('previewPanel').hidden = false; $('previewTitle').textContent = row.title; $('player').src = fileUrl(row.file_id); $('player').load(); $('previewPanel').scrollIntoView({behavior: 'smooth', block: 'center'}); }); actions.append(play, save); }
+      box.append(actions);
     }
     $('downloads').append(box);
   });
@@ -105,8 +116,9 @@ async function startDownload(retry = false) {
   if (!choices.length) { status('请至少勾选一个视频', true); return; }
   busy(true); $('retryBtn').hidden = true;
   try {
-    const checked = await api('/api/path', {path: $('saveDir').value}); $('saveDir').value = checked.path; $('pathStatus').textContent = `实际保存目录：${checked.path}`;
-    const job = await api('/api/download', {parse_id: parsedId, choices, save_dir: checked.path});
+    let saveDir = $('saveDir').value;
+    if (!hosted) { const checked = await api('/api/path', {path: saveDir}); saveDir = checked.path; $('saveDir').value = saveDir; $('pathStatus').textContent = `实际保存目录：${saveDir}`; }
+    const job = await api('/api/download', {parse_id: parsedId, choices, save_dir: saveDir});
     activeId = job.id; localStorage.setItem('douyinActive', job.id); poll(job.id);
   } catch(e) { busy(false); status(e.message, true); }
 }
@@ -124,7 +136,7 @@ $('closePreview').addEventListener('click', () => { $('player').pause(); $('play
 $('player').addEventListener('error', () => { $('playerHint').textContent = '浏览器无法播放此编码。文件已保存，请用本机播放器打开，或重新选择 H.264 视频源。'; });
 (async () => {
   try {
-    const config = await api('/api/config'); $('saveDir').value = config.save_dir;
+    const config = await api('/api/config'); $('saveDir').value = config.save_dir; applyHostedMode(config.hosted);
     const oldParse = localStorage.getItem('douyinParse');
     if (oldParse) { try { const p = await api(`/api/job?id=${oldParse}`); if (p.state === 'done') { parsedId = oldParse; rows = p.items; renderVideos(rows); busy(false); } } catch { localStorage.removeItem('douyinParse'); } }
     const active = localStorage.getItem('douyinActive');

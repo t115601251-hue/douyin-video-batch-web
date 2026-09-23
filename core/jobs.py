@@ -16,29 +16,29 @@ class JobManager:
     def __init__(self):
         self.lock = threading.RLock()
         self.jobs = {}
-        self.active = None
+        self.active = {}
         self.files = {}
 
-    def _new(self, kind):
+    def _new(self, owner, kind):
         with self.lock:
-            if self.active:
-                raise ValueError('另一个批次正在运行，请等待完成或取消后再试')
+            if self.active.get(owner):
+                raise ValueError('当前页面已有批次在运行，请等待完成或取消后再试')
             # Completed batches are retained for refresh/retry during this run.
             if len(self.jobs) >= 30:
                 oldest = next(iter(self.jobs))
                 self.jobs.pop(oldest)
             jid = uuid.uuid4().hex
-            job = dict(id=jid, kind=kind, state='running', items=[], total=0, completed=0,
+            job = dict(id=jid, owner=owner, kind=kind, state='running', items=[], total=0, completed=0,
                        message='', save_dir='', cancel=threading.Event(), infos=[], loop=None, task=None)
             self.jobs[jid] = job
-            self.active = jid
+            self.active[owner] = jid
             return job
 
-    def snapshot(self, jid):
+    def snapshot(self, owner, jid):
         with self.lock:
-            if jid not in self.jobs:
+            if jid not in self.jobs or self.jobs[jid].get('owner') != owner:
                 raise ValueError('任务已失效，请重新解析链接')
-            return copy.deepcopy({k: v for k, v in self.jobs[jid].items() if k not in ('cancel', 'infos', 'loop', 'task')})
+            return copy.deepcopy({k: v for k, v in self.jobs[jid].items() if k not in ('owner', 'cancel', 'infos', 'loop', 'task')})
 
     def launch(self, job, coro):
         def worker():
@@ -66,23 +66,31 @@ class JobManager:
             finally:
                 with self.lock:
                     job['loop'] = job['task'] = None
-                    self.active = None
+                    if self.active.get(job['owner']) == job['id']:
+                        self.active.pop(job['owner'], None)
         threading.Thread(target=worker, daemon=True, name='batch-' + job['id'][:8]).start()
 
-    def cancel(self, jid):
+    def cancel(self, owner, jid):
         with self.lock:
             job = self.jobs.get(jid)
-            if not job or job['state'] != 'running':
+            if not job or job.get('owner') != owner or job['state'] != 'running':
                 return
             job['cancel'].set()
             if job['loop'] and job['task']:
                 job['loop'].call_soon_threadsafe(job['task'].cancel)
 
-    def parse(self, text):
+    def resolve_file(self, owner, fid):
+        with self.lock:
+            record = self.files.get(fid)
+            if not record or record[0] != owner:
+                return None
+            return record[1]
+
+    def parse(self, owner, text):
         urls = extract_public_links(text)
         if not urls:
             raise ValueError('没有识别到公开网页链接。请粘贴以 http:// 或 https:// 开头的视频页或分享链接')
-        job = self._new('parse')
+        job = self._new(owner, 'parse')
         job['total'] = len(urls)
         job['items'] = [{'source_urls': [u], 'status': '等待解析'} for u in urls]
         async def work():
@@ -119,10 +127,10 @@ class JobManager:
         self.launch(job, work)
         return job['id']
 
-    def download(self, parse_id, choices, save_dir):
+    def download(self, owner, parse_id, choices, save_dir):
         with self.lock:
             parsed = self.jobs.get(parse_id)
-            if not parsed or parsed['kind'] != 'parse' or parsed['state'] != 'done':
+            if not parsed or parsed.get('owner') != owner or parsed['kind'] != 'parse' or parsed['state'] != 'done':
                 raise ValueError('请先完成链接解析，再选择清晰度下载')
             if not isinstance(choices, list) or not choices or len(choices) > 100:
                 raise ValueError('请勾选 1～100 个视频')
@@ -138,7 +146,7 @@ class JobManager:
                     selections.append((info, variant))
                     seen.add(info.aweme_id)
             path = prepare_directory(save_dir)
-            job = self._new('download')
+            job = self._new(owner, 'download')
             job['save_dir'] = str(path)
             job['parse_id'] = parse_id
             job['total'] = len(selections)
@@ -149,7 +157,7 @@ class JobManager:
                 with self.lock:
                     if row.get('save_path'):
                         fid = uuid.uuid5(uuid.NAMESPACE_URL, row['save_path']).hex
-                        self.files[fid] = Path(row['save_path'])
+                        self.files[fid] = (job['owner'], Path(row['save_path']))
                         row['file_id'] = fid
                     index = next(k for k, r in enumerate(job['items']) if r['aweme_id'] == row['aweme_id'])
                     job['items'][index] = row
