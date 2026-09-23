@@ -19,4 +19,4 @@
 <section class="card"><div class="section-head"><h2>任务进度</h2><div class="actions"><button id="retryBtn" hidden>重试失败项</button><button id="cancelBtn" hidden>取消当前任务</button></div></div><p id="status" role="status" aria-live="polite">等待输入链接</p><progress id="progress" value="0" max="100"></progress><div id="downloads" class="downloads"></div></section>
 <section id="previewPanel" class="card" hidden><div class="section-head"><h2 id="previewTitle">本地视频预览</h2><button id="closePreview">关闭预览</button></div><video id="player" controls preload="metadata"></video><p id="playerHint" class="hint">播放的是已经下载到本机的文件，可以拖动进度条。H.265 无法播放时请使用本机播放器。</p></section>
 <footer>公开可访问的视频源 · 原始画质保存 · 每个作品只保存一个 MP4 文件</footer>
-</main></body></html>
+</main><dialog id="downloadDialog" aria-labelledby="downloadDialogTitle"><h2 id="downloadDialogTitle">已开始下载</h2><p>视频将按你的浏览器设置保存到“下载”文件夹。</p><p class="hint">下载完成后，可在浏览器下载记录中点击文件夹图标打开所在位置。</p><div class="actions"><button id="dismissDownloadDialog" class="primary">确认</button><button id="openDownloadsBtn">查看浏览器下载记录</button></div></dialog></body></html>

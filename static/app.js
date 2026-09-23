@@ -80,7 +80,7 @@ function renderDownloads(items) {
     if (row.file_id) {
       const actions = el('div', undefined, 'actions');
       const save = el('a', hosted ? '下载 MP4 到设备' : '另存一份'); save.href = fileUrl(row.file_id, true);
-      if (hosted) { save.download = ''; actions.append(save); }
+      if (hosted) { save.download = ''; save.addEventListener('click', () => setTimeout(() => $('downloadDialog').showModal(), 120)); actions.append(save); }
       else { const play = el('button', '预览本地视频'); play.addEventListener('click', () => { $('previewPanel').hidden = false; $('previewTitle').textContent = row.title; $('player').src = fileUrl(row.file_id); $('player').load(); $('previewPanel').scrollIntoView({behavior: 'smooth', block: 'center'}); }); actions.append(play, save); }
       box.append(actions);
     }
@@ -135,6 +135,8 @@ $('globalQuality').addEventListener('change', () => {
   rows.filter(r => r.matched).forEach(r => { const v = chooseVariant(r.variants, $('globalQuality').value); preferences.set(r.aweme_id, v.id); const s = [...document.querySelectorAll('#videos select')].find(e => e.dataset.id === r.aweme_id); if (s) s.value = v.id; });
 });
 $('pathBtn').addEventListener('click', async () => { try { const data = await api('/api/path', {path: $('saveDir').value}); $('saveDir').value = data.path; $('pathStatus').textContent = `已确认可写：${data.path}`; } catch(e) { $('pathStatus').textContent = e.message; status(e.message, true); } });
+$('dismissDownloadDialog').addEventListener('click', () => $('downloadDialog').close());
+$('openDownloadsBtn').addEventListener('click', () => { $('downloadDialog').close(); window.open('chrome://downloads/', '_blank', 'noopener'); });
 $('closePreview').addEventListener('click', () => { $('player').pause(); $('player').removeAttribute('src'); $('player').load(); $('previewPanel').hidden = true; });
 $('player').addEventListener('error', () => { $('playerHint').textContent = '浏览器无法播放此编码。文件已保存，请用本机播放器打开，或重新选择 H.264 视频源。'; });
 (async () => {
